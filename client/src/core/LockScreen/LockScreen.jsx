@@ -1,77 +1,75 @@
 import { useEffect, useState } from "react";
 import { useGesture } from "@use-gesture/react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useOSStore } from "../../store/useOSStore";
 import wallpaper from "../../assets/wallpaper.png";
 import PasscodePad from "./PasscodePad";
 
-
 export default function LockScreen() {
   const revealPasscode = useOSStore((s) => s.revealPasscode);
   const showPasscode = useOSStore((s) => s.showPasscode);
-
+  const isUnlocked = useOSStore((s) => s.isUnlocked);
   const [time, setTime] = useState(new Date());
-  const [isHovered, setIsHovered] = useState(false);
 
-  // Update clock every second
   useEffect(() => {
-    const interval = setInterval(() => {
-      setTime(new Date());
-    }, 1000);
+    const interval = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(interval);
   }, []);
 
-  // Swipe gesture
   const bind = useGesture({
-    onDrag: ({ movement: [, my] }) => {
-      if (my < -80 && !showPasscode) {
+    onDrag: ({ movement: [, my], velocity: [, vy] }) => {
+      // Swipe up logic with velocity check for snappiness
+      if ((my < -100 || vy > 0.5) && !showPasscode) {
         revealPasscode();
       }
     },
   });
 
+  // Decide if we should hide internal elements (clock, etc)
+  // They should be hidden if passcode is showing OR if we are in the middle of unlocking
+  const shouldHideUI = showPasscode || isUnlocked;
+
   return (
     <motion.div
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      className="w-full h-full bg-cover bg-center text-white relative overflow-hidden"
-      style={{ backgroundImage: `url(${wallpaper})` }}
-      initial={{ y: 0 }}
-      animate={{ y: showPasscode ? -100 : 0 }}
-      transition={{ type: "spring", stiffness: 120 }}
+      initial={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 1.2 }}
+      transition={{ duration: 0.4, ease: "easeInOut" }}
       {...bind()}
+      className="absolute inset-0 w-full h-full bg-cover bg-center text-white overflow-hidden select-none touch-none z-10"
+      style={{ backgroundImage: `url(${wallpaper})` }}
     >
-      {/* Dark overlay for readability */}
-      <div className="absolute inset-0 bg-black/25 backdrop-blur-[2px]" />
+      {/* Dynamic Overlay: Blurs more when passcode is showing */}
+      <motion.div
+        className="absolute inset-0 bg-black/20"
+        animate={{ backdropFilter: shouldHideUI ? "blur(20px)" : "blur(0px)" }}
+      />
 
-     
-
-      {/* LOCK ICON */}
-      <div className="absolute top-20 w-full flex justify-center z-10">
-        <div className="text-2xl">
+      {/* TOP SECTION: LOCK & CLOCK */}
+      <motion.div
+        className="relative z-10 flex flex-col items-center pt-14"
+        animate={{
+          y: shouldHideUI ? -150 : 0,
+          opacity: shouldHideUI ? 0 : 1,
+          scale: shouldHideUI ? 0.9 : 1,
+        }}
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+      >
+        {/* Animated Lock Icon */}
+        <div className="mb-2 opacity-80">
           <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
+            width="20"
+            height="20"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
+            strokeWidth="2.5"
           >
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            <rect x="5" y="11" width="14" height="10" rx="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
           </svg>
         </div>
-      </div>
 
-      {/* CLOCK SECTION */}
-      <div className="flex flex-col items-center justify-center h-full z-10 relative">
-        <h1 className="text-7xl font-stretch-semi-condensed tracking-tight">
-          {time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-        </h1>
-        <p className="mt-2 text-lg font-light">
+        <p className="text-lg font-medium tracking-wide uppercase opacity-90">
           {time.toLocaleDateString(undefined, {
             weekday: "long",
             day: "numeric",
@@ -79,65 +77,62 @@ export default function LockScreen() {
           })}
         </p>
 
-        {!showPasscode && (
-          <p className="absolute bottom-24 text-sm opacity-80 animate-pulse">
-            Swipe up to unlock
-          </p>
-        )}
-      </div>
+        <h1 className="text-[90px] font-bold tracking-tighter leading-tight mt-[-10px]">
+          {time.toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false,
+          })}
+        </h1>
+      </motion.div>
 
       {/* BOTTOM QUICK ACTIONS */}
-      <div className="absolute bottom-8 w-full flex justify-between px-10 z-10">
-        <div className="w-14 h-14 bg-black/40 backdrop-blur-md rounded-full flex items-center justify-center text-xl">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
+      <AnimatePresence>
+        {!shouldHideUI && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute bottom-12 w-full flex justify-between px-12 z-10"
           >
-            <path d="M18 6H6l2 4V20a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V10l2-4z"></path>
-            <line x1="6" y1="6" x2="18" y2="6"></line>
-            <line x1="10" y1="14" x2="14" y2="14"></line>
+            {/* Flashlight Button */}
+            <div className="w-12 h-12 bg-black/30 backdrop-blur-xl rounded-full flex items-center justify-center active:bg-white active:text-black transition-colors duration-300">
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M18 6H6l2 4V20a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V10l2-4z" />
+                <line x1="6" y1="6" x2="18" y2="6" />
+              </svg>
+            </div>
 
-            <line x1="12" y1="2" x2="12" y2="4"></line>
-            <line x1="7" y1="3" x2="9" y2="5"></line>
-            <line x1="17" y1="3" x2="15" y2="5"></line>
-          </svg>
-        </div>
+            <p className="self-center text-[13px] font-medium opacity-60 tracking-tight">
+              Swipe up to unlock
+            </p>
 
-        <div className="w-14 h-14 bg-black/40 backdrop-blur-md rounded-full flex items-center justify-center text-xl">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
-            <circle cx="12" cy="13" r="4"></circle>
-          </svg>
-        </div>
-      </div>
+            {/* Camera Button */}
+            <div className="w-12 h-12 bg-black/30 backdrop-blur-xl rounded-full flex items-center justify-center active:bg-white active:text-black transition-colors duration-300">
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+              >
+                <rect x="2" y="6" width="20" height="14" rx="3" />
+                <path d="M10 6V4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2" />
+                <circle cx="12" cy="13" r="4" />
+              </svg>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* HOME INDICATOR BAR */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{
-          opacity: isHovered ? 0.6 : 0,
-          y: isHovered ? 0 : 10,
-        }}
-        transition={{ duration: 0.3, ease: "easeOut" }}
-        className="absolute bottom-2 left-1/2 -translate-x-1/2 w-[120px] h-[5px] bg-white rounded-full z-10"
-      />
       <PasscodePad />
     </motion.div>
   );

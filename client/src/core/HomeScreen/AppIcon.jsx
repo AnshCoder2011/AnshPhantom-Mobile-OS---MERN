@@ -1,14 +1,33 @@
 import { motion } from "framer-motion";
+import { useOSStore } from "../../store/useOSStore";
+import { useRef } from "react";
 
 export default function AppIcon({ name, dock }) {
+  const openApp = useOSStore((s) => s.openApp);
+  const iconRef = useRef(null);
+
+  const handleOpen = () => {
+    if (iconRef.current) {
+      const rect = iconRef.current.getBoundingClientRect();
+      openApp(name, {
+        x: rect.left,
+        y: rect.top,
+        width: rect.width,
+        height: rect.height,
+      });
+    }
+  };
+
   const Icon = icons[name] || icons.Default;
   return (
     <motion.div
       whileTap={{ scale: 0.9 }}
       transition={{ type: "spring", stiffness: 300, damping: 20 }}
-      className={`flex flex-col items-center gap-2 select-none`}
+      onClick={handleOpen}
+      className={`flex flex-col items-center gap-2 select-none cursor-pointer`}
     >
       <div
+        ref={iconRef}
         className={`${
           dock ? "w-14 h-14" : "w-16 h-16"
         } rounded-2xl flex items-center justify-center`}
@@ -16,7 +35,11 @@ export default function AppIcon({ name, dock }) {
         <Icon className="w-full h-full" />
       </div>
 
-      {!dock && <span className="text-xs text-center font-medium">{name}</span>}
+      {!dock && (
+        <span className="text-xs text-center font-medium text-white">
+          {name}
+        </span>
+      )}
     </motion.div>
   );
 }

@@ -1,38 +1,88 @@
-import { motion, useMotionValue, animate } from "framer-motion";
+import {
+  motion,
+  useMotionValue,
+  animate,
+  AnimatePresence,
+} from "framer-motion";
 import { useOSStore } from "../../store/useOSStore";
 import { useEffect, useRef } from "react";
 import { useGesture } from "@use-gesture/react";
-import haseen from "../../assets/haseen.mp3";
+
+// Import all songs
+import haseen from "/music/haseen.mp3";
+import palpal from "/music/palpal.mp3";
+import forareason from "/music/forareason.mp3";
+import samjhona from "/music/samjhona.mp3";
+import dhundhla from "/music/dhundhla.mp3";
+import sahiba from "/music/sahiba.mp3";
+import tu from "/music/tu.mp3";
+import maand from "/music/maand.mp3";
+
+const playlist = [
+  { name: "Haseen", artist: "Talwiinder", file: haseen },
+  { name: "Pal Pal", artist: "Talwiinder", file: palpal },
+  { name: "For A Reason", artist: "Karan Aujla", file: forareason },
+  { name: "Jaana Samjhona", artist: "Aditya Rikhari", file: samjhona },
+  { name: "Dhundhla", artist: "Talwiinder", file: dhundhla },
+  { name: "Sahiba", artist: "Aditya Rikhari", file: sahiba },
+  { name: "Tu", artist: "Talwiinder", file: tu },
+  { name: "Maand", artist: "Hasan Raheem", file: maand },
+];
 
 export default function ControlCenter() {
   const isOpen = useOSStore((s) => s.isControlOpen);
   const closeControl = useOSStore((s) => s.closeControl);
 
   // Control Center Toggles
-  const isWifiOn = useOSStore((s) => s.isWifiOn);
-  const toggleWifi = useOSStore((s) => s.toggleWifi);
-  const isBluetoothOn = useOSStore((s) => s.isBluetoothOn);
-  const toggleBluetooth = useOSStore((s) => s.toggleBluetooth);
-  const isAirplaneModeOn = useOSStore((s) => s.isAirplaneModeOn);
-  const toggleAirplaneMode = useOSStore((s) => s.toggleAirplaneMode);
-  const isSignalOn = useOSStore((s) => s.isSignalOn);
-  const toggleSignal = useOSStore((s) => s.toggleSignal);
-  const isRotationLocked = useOSStore((s) => s.isRotationLocked);
-  const toggleRotationLock = useOSStore((s) => s.toggleRotationLock);
-  const isDarkModeOn = useOSStore((s) => s.isDarkModeOn);
-  const toggleDarkMode = useOSStore((s) => s.toggleDarkMode);
-  const isTorchOn = useOSStore((s) => s.isTorchOn);
-  const toggleTorch = useOSStore((s) => s.toggleTorch);
+  const {
+    isWifiOn,
+    toggleWifi,
+    isBluetoothOn,
+    toggleBluetooth,
+    isAirplaneModeOn,
+    toggleAirplaneMode,
+    isSignalOn,
+    toggleSignal,
+    isRotationLocked,
+    toggleRotationLock,
+    isDarkModeOn,
+    toggleDarkMode,
+    isTorchOn,
+    toggleTorch,
+    brightness,
+    setBrightness,
+    volume,
+    setVolume,
+    isMusicPlaying,
+    toggleMusic,
+    currentSongIndex,
+    nextSong,
+    prevSong,
+    openApp,
+  } = useOSStore();
 
-  // Control Center Sliders
-  const brightness = useOSStore((s) => s.brightness);
-  const setBrightness = useOSStore((s) => s.setBrightness);
-  const volume = useOSStore((s) => s.volume);
-  const setVolume = useOSStore((s) => s.setVolume);
-  const y = useMotionValue(-600); // start hidden above screen
-  const isMusicPlaying = useOSStore((s) => s.isMusicPlaying);
-  const toggleMusic = useOSStore((s) => s.toggleMusic);
+  const y = useMotionValue(-600);
   const audioRef = useRef(null);
+  const calcIconRef = useRef(null);
+
+  const handleOpenCalc = () => {
+    if (calcIconRef.current) {
+      const rect = calcIconRef.current.getBoundingClientRect();
+      // First close control center with animation
+      animate(y, -600, { duration: 0.3 }).then(() => {
+        closeControl();
+        // Then open app with zoom origin
+        openApp("Calculator", {
+          x: rect.left,
+          y: rect.top,
+          width: rect.width,
+          height: rect.height,
+        });
+      });
+    }
+  };
+
+  const currentSong = playlist[currentSongIndex];
 
   // When show changes → animate in
   useEffect(() => {
@@ -44,13 +94,17 @@ export default function ControlCenter() {
     }
   }, [isOpen]);
 
+  // Audio setup and source switching
   useEffect(() => {
     if (!audioRef.current) {
-      audioRef.current = new Audio(haseen);
-      audioRef.current.loop = true;
-      audioRef.current.volume = volume;
+      audioRef.current = new Audio(currentSong.file);
+      audioRef.current.loop = false; // Disable loop to allow auto-next if desired
+      audioRef.current.onended = () => nextSong(playlist.length);
+    } else {
+      audioRef.current.src = currentSong.file;
+      if (isMusicPlaying) audioRef.current.play();
     }
-  }, []);
+  }, [currentSongIndex]);
 
   useEffect(() => {
     if (audioRef.current) {
@@ -61,7 +115,7 @@ export default function ControlCenter() {
   useEffect(() => {
     if (!audioRef.current) return;
     if (isMusicPlaying) {
-      audioRef.current.play();
+      audioRef.current.play().catch((e) => console.log("Playback failed:", e));
     } else {
       audioRef.current.pause();
     }
@@ -70,14 +124,12 @@ export default function ControlCenter() {
   if (!isOpen) return null;
 
   const handleDragEnd = (_, info) => {
-    // If dragged up enough OR fast upward swipe → close
     if (info.offset.y < -120 || info.velocity.y < -800) {
       animate(y, -600, {
         duration: 0.3,
         ease: [0.23, 1, 0.32, 1],
       }).then(closeControl);
     } else {
-      // Snap back
       animate(y, 0, {
         duration: 0.3,
         ease: [0.23, 1, 0.32, 1],
@@ -94,7 +146,6 @@ export default function ControlCenter() {
       style={{ y }}
       className="absolute inset-0 z-50 backdrop-blur-3xl bg-black/20 p-6 pt-14 text-white font-sans select-none"
     >
-      {/* Background overlay click */}
       <div className="absolute inset-0 -z-10" onClick={closeControl} />
 
       <div className="grid grid-cols-4 gap-4 max-w-sm mx-auto">
@@ -104,65 +155,90 @@ export default function ControlCenter() {
             active={isAirplaneModeOn}
             color="bg-orange-400"
             onClick={toggleAirplaneMode}
-          >
-            <PlaneIcon />
-          </IconButton>
+            icon={<PlaneIcon />}
+          />
           <IconButton
             active={isSignalOn}
             color="bg-green-500"
             onClick={toggleSignal}
-          >
-            <SignalIcon />
-          </IconButton>
+            icon={<SignalIcon />}
+          />
           <IconButton
             active={isWifiOn}
             color="bg-blue-500"
             onClick={toggleWifi}
-          >
-            <WifiIcon />
-          </IconButton>
+            icon={<WifiIcon />}
+          />
           <IconButton
             active={isBluetoothOn}
             color="bg-blue-600"
             onClick={toggleBluetooth}
-          >
-            <BluetoothIcon />
-          </IconButton>
+            icon={<BluetoothIcon />}
+          />
         </div>
 
-        {/* 2. Media */}
-        <div className="col-span-2 row-span-2 bg-white/20 backdrop-blur-md rounded-[2.5rem] p-5 flex flex-col justify-between">
-          <div className="text-center mt-2">
-            <p className="text-xl font-semibold truncate">Haseen</p>
-            <p className="text-sm opacity-60">Talwiinder</p>
+        {/* 2. Media Player */}
+        <div className="col-span-2 row-span-2 bg-white/20 backdrop-blur-md rounded-[2.5rem] p-5 flex flex-col justify-between overflow-hidden">
+          <div className="text-center mt-2 overflow-hidden relative h-12">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentSongIndex}
+                initial={{ y: 10, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: -10, opacity: 0 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+                className="absolute inset-0 flex flex-col items-center justify-center"
+              >
+                <p className="text-lg font-semibold truncate px-1 w-full text-center">
+                  {currentSong.name}
+                </p>
+                <p className="text-xs opacity-60 truncate w-full text-center">
+                  {currentSong.artist}
+                </p>
+              </motion.div>
+            </AnimatePresence>
           </div>
-          <div className="flex justify-between items-center px-2 pb-2">
-            <FastForwardIcon className="rotate-180" />
-            <div onClick={toggleMusic} className="cursor-pointer">
-              {isMusicPlaying ? <PauseIcon /> : <PlayIcon />}
+          <div className="flex justify-between items-center px-1 pb-2">
+            <button
+              onClick={() => prevSong(playlist.length)}
+              className="p-1 hover:bg-white/10 rounded-full transition-colors"
+            >
+              <FastForwardIcon className="rotate-180 w-5 h-5" />
+            </button>
+            <div
+              onClick={toggleMusic}
+              className="cursor-pointer p-1 hover:bg-white/10 rounded-full transition-colors"
+            >
+              {isMusicPlaying ? (
+                <PauseIcon className="w-6 h-6" />
+              ) : (
+                <PlayIcon className="w-6 h-6" />
+              )}
             </div>
-            <FastForwardIcon />
+            <button
+              onClick={() => nextSong(playlist.length)}
+              className="p-1 hover:bg-white/10 rounded-full transition-colors"
+            >
+              <FastForwardIcon className="w-5 h-5" />
+            </button>
           </div>
         </div>
 
-        {/* Middle */}
-        <div
-          className="bg-white/20 backdrop-blur-md aspect-square rounded-[1.5rem] flex items-center justify-center"
-          onClick={toggleRotationLock}
-        >
-          <IconButton active={isRotationLocked} color="bg-gray-500">
-            <RotationIcon />
-          </IconButton>
-        </div>
-
-        <div
-          className="bg-white/20 backdrop-blur-md aspect-square rounded-[1.5rem] flex items-center justify-center"
-          onClick={toggleDarkMode}
-        >
-          <IconButton active={isDarkModeOn} color="bg-indigo-500">
-            <MoonIcon />
-          </IconButton>
-        </div>
+        {/* Middle Row */}
+        <Square onClick={toggleRotationLock}>
+          <IconButton
+            active={isRotationLocked}
+            color="bg-yellow-600"
+            icon={<RotationIcon />}
+          />
+        </Square>
+        <Square onClick={toggleDarkMode}>
+          <IconButton
+            active={isDarkModeOn}
+            color="bg-indigo-500"
+            icon={<MoonIcon />}
+          />
+        </Square>
 
         {/* Sliders */}
         <div className="row-span-2">
@@ -172,7 +248,6 @@ export default function ControlCenter() {
             onChange={setBrightness}
           />
         </div>
-
         <div className="row-span-2">
           <VerticalSlider
             icon={<VolumeIcon />}
@@ -193,15 +268,22 @@ export default function ControlCenter() {
 
         {/* Bottom row */}
         <Square onClick={toggleTorch}>
-          <IconButton active={isTorchOn} color="bg-yellow-400">
-            <TorchIcon />
-          </IconButton>
+          <IconButton
+            active={isTorchOn}
+            color="bg-yellow-400"
+            icon={<TorchIcon />}
+          />
         </Square>
         <Square>
           <TimerIcon />
         </Square>
-        <Square>
-          <CalcIcon />
+        <Square onClick={handleOpenCalc}>
+          <div
+            ref={calcIconRef}
+            className="w-full h-full flex items-center justify-center"
+          >
+            <CalcIcon />
+          </div>
         </Square>
         <Square>
           <CameraIcon />
@@ -213,27 +295,23 @@ export default function ControlCenter() {
 
 /* --- UI Helpers --- */
 
-function IconButton({ children, active, color, onClick }) {
+function IconButton({ icon, active, color, onClick }) {
   return (
     <div
       onClick={onClick}
       className={`w-full aspect-square rounded-full flex items-center justify-center transition-all cursor-pointer
       ${active ? color : "bg-white/10"}`}
     >
-      {children}
+      {icon}
     </div>
   );
 }
 
 function VerticalSlider({ icon, value, onChange }) {
-  const sliderHeight = 155; // Height of the slider track
-
-  // We use memo to store the starting value of the slider when drag starts
+  const sliderHeight = 155;
   const bind = useGesture({
     onDrag: ({ movement: [, my], first, memo }) => {
-      if (first) {
-        return value; // Store initial value in memo
-      }
+      if (first) return value;
       const delta = -my / sliderHeight;
       const newValue = Math.max(0, Math.min(1, memo + delta));
       onChange(newValue);
@@ -257,15 +335,18 @@ function VerticalSlider({ icon, value, onChange }) {
   );
 }
 
-function Square({ children }) {
+function Square({ children, onClick }) {
   return (
-    <div className="bg-white/20 backdrop-blur-md aspect-square rounded-2xl flex items-center justify-center">
+    <div
+      onClick={onClick}
+      className="bg-white/20 backdrop-blur-md aspect-square rounded-2xl flex items-center justify-center cursor-pointer overflow-hidden"
+    >
       {children}
     </div>
   );
 }
 
-/* --- SVGs (unchanged from yours) --- */
+/* --- SVGs --- */
 
 const PlaneIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -280,16 +361,14 @@ const SignalIcon = () => (
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
-    stroke-width="2.5"
-    stroke-linecap="round"
-    stroke-linejoin="round"
+    strokeWidth="2.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
   >
     <line x1="12" y1="18" x2="12" y2="21"></line>
     <circle cx="12" cy="15" r="2"></circle>
-
     <path d="M7 11c-1.8 1.8-1.8 4.7 0 6.5"></path>
     <path d="M4.5 8.5c-3.1 3.1-3.1 8.1 0 11"></path>
-
     <path d="M17 11c1.8 1.8 1.8 4.7 0 6.5"></path>
     <path d="M19.5 8.5c3.1 3.1 3.1 8.1 0 11"></path>
   </svg>
@@ -302,9 +381,9 @@ const WifiIcon = () => (
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
-    stroke-width="2"
-    stroke-linecap="round"
-    stroke-linejoin="round"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
   >
     <path d="M5 13a10 10 0 0 1 14 0"></path>
     <path d="M8.5 16.5a5 5 0 0 1 7 0"></path>
@@ -323,7 +402,7 @@ const BluetoothIcon = () => (
     <path d="m7 7 10 10-5 5V2l5 5L7 17" />
   </svg>
 );
-const PlayIcon = () => (
+const PlayIcon = ({ className }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     width="24"
@@ -331,15 +410,15 @@ const PlayIcon = () => (
     viewBox="0 0 24 24"
     fill="white"
     stroke="currentColor"
-    stroke-width="2"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-    class="lucide lucide-play-icon lucide-play"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
   >
     <path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z" />
   </svg>
 );
-const PauseIcon = () => (
+const PauseIcon = ({ className }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     width="24"
@@ -347,15 +426,16 @@ const PauseIcon = () => (
     viewBox="0 0 24 24"
     fill="white"
     stroke="currentColor"
-    stroke-width="2"
-    stroke-linecap="round"
-    stroke-linejoin="round"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
   >
     <rect x="6" y="5" width="4" height="14" rx="1" />
     <rect x="14" y="5" width="4" height="14" rx="1" />
   </svg>
 );
-const FastForwardIcon = () => (
+const FastForwardIcon = ({ className }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     width="24"
@@ -363,10 +443,10 @@ const FastForwardIcon = () => (
     viewBox="0 0 24 24"
     fill="white"
     stroke="currentColor"
-    stroke-width="2"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-    class="lucide lucide-fast-forward-icon lucide-fast-forward"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
   >
     <path d="M12 6a2 2 0 0 1 3.414-1.414l6 6a2 2 0 0 1 0 2.828l-6 6A2 2 0 0 1 12 18z" />
     <path d="M2 6a2 2 0 0 1 3.414-1.414l6 6a2 2 0 0 1 0 2.828l-6 6A2 2 0 0 1 2 18z" />
@@ -380,12 +460,11 @@ const SunIcon = () => (
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
-    stroke-width="2"
-    stroke-linecap="round"
-    stroke-linejoin="round"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
   >
     <circle cx="12" cy="12" r="4"></circle>
-
     <line x1="12" y1="2" x2="12" y2="4"></line>
     <line x1="12" y1="20" x2="12" y2="22"></line>
     <line x1="4.93" y1="4.93" x2="6.34" y2="6.34"></line>
@@ -404,12 +483,11 @@ const VolumeIcon = () => (
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
-    stroke-width="2"
-    stroke-linecap="round"
-    stroke-linejoin="round"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
   >
     <path d="M11 5L6 9H2v6h4l5 4V5z"></path>
-
     <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
     <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
   </svg>
@@ -437,10 +515,9 @@ const RotationIcon = () => (
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
-    stroke-width="2"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-    class="lucide lucide-rotate-cw-icon lucide-rotate-cw"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
   >
     <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
     <path d="M21 3v5h-5" />
@@ -454,10 +531,9 @@ const MirrorIcon = () => (
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
-    stroke-width="2"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-    class="lucide lucide-copy-icon lucide-copy"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
   >
     <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
     <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
@@ -471,10 +547,9 @@ const TorchIcon = () => (
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
-    stroke-width="2"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-    class="lucide lucide-flashlight-icon lucide-flashlight"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
   >
     <path d="M12 13v1" />
     <path d="M17 2a1 1 0 0 1 1 1v4a3 3 0 0 1-.6 1.8l-.6.8A4 4 0 0 0 16 12v8a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2v-8a4 4 0 0 0-.8-2.4l-.6-.8A3 3 0 0 1 6 7V3a1 1 0 0 1 1-1z" />
@@ -489,10 +564,9 @@ const TimerIcon = () => (
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
-    stroke-width="2"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-    class="lucide lucide-timer-icon lucide-timer"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
   >
     <line x1="10" x2="14" y1="2" y2="2" />
     <line x1="12" x2="15" y1="14" y2="11" />
@@ -507,10 +581,9 @@ const CalcIcon = () => (
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
-    stroke-width="2"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-    class="lucide lucide-calculator-icon lucide-calculator"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
   >
     <rect width="16" height="20" x="4" y="2" rx="2" />
     <line x1="8" x2="16" y1="6" y2="6" />
@@ -532,10 +605,9 @@ const CameraIcon = () => (
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
-    stroke-width="2"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-    class="lucide lucide-camera-icon lucide-camera"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
   >
     <path d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z" />
     <circle cx="12" cy="13" r="3" />

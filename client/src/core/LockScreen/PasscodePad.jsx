@@ -1,71 +1,90 @@
-import { motion } from "framer-motion";
 import { useOSStore } from "../../store/useOSStore";
+import { motion } from "framer-motion";
 import { useEffect } from "react";
 
 export default function PasscodePad() {
   const { showPasscode, passcode, addDigit, deleteDigit, checkPasscode } =
     useOSStore();
 
-
   // Auto-check when 4 digits entered
   useEffect(() => {
     if (passcode.length === 4) {
-      checkPasscode(passcode);
+      // Delay slightly for visual feedback of the 4th dot filling
+      const timer = setTimeout(() => {
+        checkPasscode(passcode);
+      }, 150);
+      return () => clearTimeout(timer);
     }
-  }, [passcode]);
+  }, [passcode, checkPasscode]);
+
+  const numMap = [
+    { n: 1, l: "" },
+    { n: 2, l: "A B C" },
+    { n: 3, l: "D E F" },
+    { n: 4, l: "G H I" },
+    { n: 5, l: "J K L" },
+    { n: 6, l: "M N O" },
+    { n: 7, l: "P Q R S" },
+    { n: 8, l: "T U V" },
+    { n: 9, l: "W X Y Z" },
+    { n: "", l: "" },
+    { n: 0, l: "" },
+    { n: "del", l: "" },
+  ];
 
   if (!showPasscode) return null;
 
-  const numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, "", 0, "del"];
-
   return (
     <motion.div
-      initial={{ y: "100%" }}
-      animate={{ y: 0 }}
-      transition={{
-        duration: 0.32,
-        ease: [0.25, 0.8, 0.25, 1],
-      }}
-      className="absolute inset-0 bg-black/40 backdrop-blur-xl flex flex-col items-center justify-center text-white z-20"
+      initial={{ opacity: 0, scale: 1.1 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="absolute inset-0 bg-black/60 backdrop-blur-2xl flex flex-col items-center justify-center z-20"
     >
-      <h2 className="text-xl mb-6">Enter Passcode</h2>
+      <div className="text-center mb-10">
+        <h2 className="text-lg font-semibold tracking-tight">Enter Passcode</h2>
 
-      {/* PASSCODE DOTS */}
-      <div className="flex gap-4 mb-10">
-        {[...Array(4)].map((_, i) => (
-          <div
-            key={i}
-            className={`w-4 h-4 rounded-full border border-white ${
-              passcode.length > i ? "bg-white" : ""
-            }`}
-          />
-        ))}
+        {/* Passcode Dots */}
+        <div className="flex gap-5 mt-6 justify-center">
+          {[...Array(4)].map((_, i) => (
+            <motion.div
+              key={i}
+              animate={{
+                scale: passcode.length === i ? 1.2 : 1,
+                backgroundColor:
+                  passcode.length > i
+                    ? "rgba(255,255,255,1)"
+                    : "rgba(255,255,255,0)",
+              }}
+              className="w-3.5 h-3.5 rounded-full border-[1.5px] border-white"
+            />
+          ))}
+        </div>
       </div>
 
-      {/* NUMBER PAD */}
-      <div className="grid grid-cols-3 gap-6">
-        {numbers.map((num, index) => {
-          if (num === "") return <div key={index}></div>;
-
-          if (num === "del") {
+      <div className="grid grid-cols-3 gap-x-8 gap-y-5">
+        {numMap.map((item, i) => {
+          if (item.n === "") return <div key={i} />;
+          if (item.n === "del")
             return (
               <button
-                key={index}
+                key={i}
                 onClick={deleteDigit}
-                className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-md text-xl active:scale-90 transition"
+                className="w-20 h-20 flex items-center justify-center text-sm font-medium active:opacity-40"
               >
-                ⌫
+                Delete
               </button>
             );
-          }
 
           return (
             <button
-              key={index}
-              onClick={() => addDigit(num.toString())}
-              className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-md text-xl active:scale-90 transition"
+              key={i}
+              onClick={() => addDigit(item.n.toString())}
+              className="w-20 h-20 rounded-full bg-white/10 hover:bg-white/20 active:bg-white/40 transition-colors flex flex-col items-center justify-center"
             >
-              {num}
+              <span className="text-3xl font-light">{item.n}</span>
+              <span className="text-[10px] font-bold tracking-widest mt-0.5 opacity-80">
+                {item.l}
+              </span>
             </button>
           );
         })}

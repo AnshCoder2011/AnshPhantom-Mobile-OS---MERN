@@ -10,6 +10,16 @@ export const useOSStore = create((set) => ({
   openControl: () => set({ isControlOpen: true }),
   closeControl: () => set({ isControlOpen: false }),
 
+  // 📂 APPS (OPEN/CLOSE LOGIC)
+  activeApp: null, // "Calculator", "Safari", etc.P
+  appOriginRect: null, // { x, y, width, height } for zoom effect
+  openApp: (appName, rect) => set({ activeApp: appName, appOriginRect: rect }),
+  closeApp: () => set({ activeApp: null }),
+
+  // 🗺 MAP STATE
+  userLocation: null,
+  setUserLocation: (coords) => set({ userLocation: coords }),
+
   // Control Center Toggles
   isWifiOn: true,
   toggleWifi: () => set((state) => ({ isWifiOn: !state.isWifiOn })),
@@ -37,8 +47,19 @@ export const useOSStore = create((set) => ({
 
   // Music Player
   isMusicPlaying: false,
+  currentSongIndex: 0,
   toggleMusic: () =>
     set((state) => ({ isMusicPlaying: !state.isMusicPlaying })),
+  nextSong: (total) =>
+    set((state) => ({
+      currentSongIndex: (state.currentSongIndex + 1) % total,
+      isMusicPlaying: true,
+    })),
+  prevSong: (total) =>
+    set((state) => ({
+      currentSongIndex: (state.currentSongIndex - 1 + total) % total,
+      isMusicPlaying: true,
+    })),
 
   // 🔢 PASSCODE
   passcode: "",
