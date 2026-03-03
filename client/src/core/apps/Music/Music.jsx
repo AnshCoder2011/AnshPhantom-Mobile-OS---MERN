@@ -9,15 +9,35 @@ import musicData from "./musicData";
 import PlayerControls from "./PlayerControls";
 import { useOSStore } from "../../../store/useOSStore";
 
-const Music = () => {
-  // ✅ Correctly pull the close function
-  const closeApp = useOSStore((state) => state.closeApp);
+// Animation Variants for the "Slide" effect
+const slideVariants = {
+  initial: (direction) => ({
+    x: direction > 0 ? 300 : -300,
+    opacity: 0,
+    scale: 0.8,
+  }),
+  center: {
+    x: 0,
+    opacity: 1,
+    scale: 1,
+    transition: { type: "spring", stiffness: 300, damping: 30 },
+  },
+  exit: (direction) => ({
+    x: direction < 0 ? 300 : -300,
+    opacity: 0,
+    scale: 0.8,
+    transition: { duration: 0.2 },
+  }),
+};
 
+const Music = () => {
+  const closeApp = useOSStore((state) => state.closeApp);
   const [songs] = useState(musicData);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [direction, setDirection] = useState(0); // 1 for next, -1 for prev
 
   const audioRef = useRef(null);
   const currentSong = songs[currentIndex];
@@ -28,9 +48,15 @@ const Music = () => {
     else audioRef.current?.pause();
   }, [isPlaying, currentIndex]);
 
-  const nextSong = () => setCurrentIndex((prev) => (prev + 1) % songs.length);
-  const prevSong = () =>
+  const nextSong = () => {
+    setDirection(1);
+    setCurrentIndex((prev) => (prev + 1) % songs.length);
+  };
+
+  const prevSong = () => {
+    setDirection(-1);
     setCurrentIndex((prev) => (prev === 0 ? songs.length - 1 : prev - 1));
+  };
 
   const handleTimeUpdate = () => {
     const cur = audioRef.current?.currentTime || 0;
@@ -46,9 +72,7 @@ const Music = () => {
     return `${min}:${sec < 10 ? "0" : ""}${sec}`;
   };
 
-  // ✅ Drag to close logic
   const handleDragEnd = (event, info) => {
-    // If pulled down more than 150px or flicked fast
     if (info.offset.y > 150 || info.velocity.y > 800) {
       closeApp();
     } else {
@@ -84,11 +108,11 @@ const Music = () => {
         </motion.div>
       </AnimatePresence>
 
-      {/* 2. Top Navigation Bar (The "Back" Button) */}
+      {/* 2. Top Nav */}
       <div className="relative z-20 w-full h-20 flex items-center px-6 justify-between pt-4">
         <motion.button
           whileTap={{ scale: 0.9, opacity: 0.6 }}
-          onClick={() => closeApp()} // 🔥 This returns you to Home Screen
+          onClick={() => closeApp()}
           className="w-10 h-10 flex items-center justify-center bg-white/10 backdrop-blur-md rounded-full"
         >
           <svg
@@ -98,8 +122,6 @@ const Music = () => {
             fill="none"
             stroke="currentColor"
             strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
           >
             <path d="m6 9 6 6 6-6" />
           </svg>
@@ -112,55 +134,67 @@ const Music = () => {
             {currentSong.artist}
           </span>
         </div>
-        <div className="w-10 h-10" /> {/* Spacer for symmetry */}
+        <div className="w-10 h-10" />
       </div>
 
-      {/* 3. Main Content */}
-      <div className="relative z-10 flex flex-col items-center px-8 h-[calc(100%-120px)] justify-around">
-        <motion.div
-          animate={{ scale: isPlaying ? 1 : 0.88 }}
-          transition={{ type: "spring", stiffness: 200, damping: 25 }}
-          className="w-full aspect-square max-w-[310px] rounded-[1.5rem] overflow-hidden shadow-2xl border border-white/10"
-        >
-          <img
-            src={currentSong.cover}
-            className="w-full h-full object-cover"
-            alt="cover"
-          />
-        </motion.div>
-
-        <div className="w-full">
-          <motion.h2
-            key={currentSong.title}
-            className="text-2xl font-bold tracking-tight"
+      {/* 3. Main Content (Animated Transition) */}
+      <div className="relative z-10 flex flex-col items-center px-8 h-[calc(100%-120px)] justify-around overflow-hidden">
+        <AnimatePresence initial={false} custom={direction} mode="popLayout">
+          <motion.div
+            key={currentIndex}
+            custom={direction}
+            variants={slideVariants}
+            initial="initial"
+            animate="center"
+            exit="exit"
+            className="w-full flex flex-col items-center"
           >
-            {currentSong.title}
-          </motion.h2>
-          <p className="text-xl text-white/50">{currentSong.artist}</p>
-
-          <div className="mt-8">
-            <div className="relative w-full h-1.5 bg-white/20 rounded-full overflow-hidden">
-              <motion.div
-                className="absolute top-0 left-0 h-full bg-white"
-                style={{ width: `${progress}%` }}
+            {/* Album Art */}
+            <motion.div
+              animate={{ scale: isPlaying ? 1 : 0.9 }}
+              transition={{ type: "spring", stiffness: 200, damping: 25 }}
+              className="w-full aspect-square max-w-[310px] rounded-[1.5rem] overflow-hidden shadow-2xl border border-white/10"
+            >
+              <img
+                src={currentSong.cover}
+                className="w-full h-full object-cover"
+                alt="cover"
               />
-            </div>
-            <div className="flex justify-between mt-2 text-[12px] font-medium opacity-40 tabular-nums">
-              <span>{formatTime(audioRef.current?.currentTime)}</span>
-              <span>
-                -{formatTime(duration - (audioRef.current?.currentTime || 0))}
-              </span>
-            </div>
-          </div>
-        </div>
+            </motion.div>
 
-        <div className="w-full flex justify-center pb-12">
-          <PlayerControls
-            isPlaying={isPlaying}
-            setIsPlaying={setIsPlaying}
-            nextSong={nextSong}
-            prevSong={prevSong}
-          />
+            {/* Song Info */}
+            <div className="w-full mt-10">
+              <h2 className="text-2xl font-bold tracking-tight">
+                {currentSong.title}
+              </h2>
+              <p className="text-xl text-white/50">{currentSong.artist}</p>
+            </div>
+          </motion.div>
+        </AnimatePresence>
+
+        {/* Controls and Progress (Stay Static) */}
+        <div className="w-full">
+          <div className="relative w-full h-1.5 bg-white/20 rounded-full overflow-hidden">
+            <motion.div
+              className="absolute top-0 left-0 h-full bg-white"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <div className="flex justify-between mt-2 text-[12px] font-medium opacity-40 tabular-nums">
+            <span>{formatTime(audioRef.current?.currentTime)}</span>
+            <span>
+              -{formatTime(duration - (audioRef.current?.currentTime || 0))}
+            </span>
+          </div>
+
+          <div className="w-full flex justify-center mt-8 pb-12">
+            <PlayerControls
+              isPlaying={isPlaying}
+              setIsPlaying={setIsPlaying}
+              nextSong={nextSong}
+              prevSong={prevSong}
+            />
+          </div>
         </div>
       </div>
 
@@ -171,7 +205,6 @@ const Music = () => {
         onEnded={nextSong}
       />
 
-      {/* 4. Home Indicator (Visual Clue to Swipe Up) */}
       <div className="absolute bottom-2 left-0 right-0 flex justify-center pointer-events-none pb-2">
         <div className="w-32 h-1.5 bg-white/30 rounded-full" />
       </div>

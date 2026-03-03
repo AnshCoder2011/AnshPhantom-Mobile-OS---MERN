@@ -14,6 +14,9 @@ import AppPlaceholder from "./core/apps/AppPlaceholder";
 import Maps from "./core/apps/maps/Maps";
 import Phone from "./core/apps/phone/Phone";
 import Music from "./core/apps/Music/Music";
+import NotesApp from "./core/apps/Notes/NotesApp";
+import ClockApp from "./core/apps/Clock/ClockApp";
+
 
 
 function App() {
@@ -70,8 +73,12 @@ function App() {
             {activeApp === "Phone" && <Phone />}
             {activeApp === "Maps" && <Maps />}
             {activeApp === "Music" && <Music />}
+            {activeApp === "Notes" && <NotesApp />}
+            {activeApp === "Clock" && <ClockApp />}
 
-            {!["Calculator", "Safari", "Camera", "Photos", "Maps", "Phone", "Music"].includes(
+
+
+            {!["Calculator", "Safari", "Camera", "Photos", "Maps", "Phone", "Music", "Notes", "Clock"].includes(
               activeApp,
             ) && <AppPlaceholder name={activeApp} />}
           </motion.div>

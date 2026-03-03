@@ -33,6 +33,7 @@ export default function Phone() {
     { name: "Ambani", time: "Last Week", type: "Incoming" },
     { name: "Virat Kohli", time: "3 days ago", type: "Incoming" },
     { name: "Donald Trump", time: "Last Week", type: "Incoming" },
+    { name: "Modi Ji", time: "Last sec", type: "Incoming" },
   ]);
 
   // Swipe-to-close

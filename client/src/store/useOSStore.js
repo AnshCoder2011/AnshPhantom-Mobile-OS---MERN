@@ -1,6 +1,15 @@
 import { create } from "zustand";
 
-export const useOSStore = create((set) => ({
+const loadNotes = () => {
+  try {
+    const saved = localStorage.getItem("notes");
+    return saved ? JSON.parse(saved) : [];
+  } catch {
+    return [];
+  }
+};
+
+export const useOSStore = create((set, get) => ({
   // 🔐 LOCK
   isUnlocked: false,
   showPasscode: false,
@@ -10,56 +19,112 @@ export const useOSStore = create((set) => ({
   openControl: () => set({ isControlOpen: true }),
   closeControl: () => set({ isControlOpen: false }),
 
-  // 📂 APPS (OPEN/CLOSE LOGIC)
-  activeApp: null, // "Calculator", "Safari", etc.P
-  appOriginRect: null, // { x, y, width, height } for zoom effect
+  // 📂 APPS
+  activeApp: null,
+  appOriginRect: null,
   openApp: (appName, rect) => set({ activeApp: appName, appOriginRect: rect }),
   closeApp: () => set({ activeApp: null }),
 
-  // 🗺 MAP STATE
+  // 🗺 MAP
   userLocation: null,
   setUserLocation: (coords) => set({ userLocation: coords }),
 
-  // Control Center Toggles
+  // 🎛 Toggles
   isWifiOn: true,
-  toggleWifi: () => set((state) => ({ isWifiOn: !state.isWifiOn })),
+  toggleWifi: () => set((s) => ({ isWifiOn: !s.isWifiOn })),
   isBluetoothOn: true,
-  toggleBluetooth: () =>
-    set((state) => ({ isBluetoothOn: !state.isBluetoothOn })),
+  toggleBluetooth: () => set((s) => ({ isBluetoothOn: !s.isBluetoothOn })),
   isAirplaneModeOn: false,
   toggleAirplaneMode: () =>
-    set((state) => ({ isAirplaneModeOn: !state.isAirplaneModeOn })),
+    set((s) => ({ isAirplaneModeOn: !s.isAirplaneModeOn })),
   isSignalOn: true,
-  toggleSignal: () => set((state) => ({ isSignalOn: !state.isSignalOn })),
+  toggleSignal: () => set((s) => ({ isSignalOn: !s.isSignalOn })),
   isRotationLocked: false,
   toggleRotationLock: () =>
-    set((state) => ({ isRotationLocked: !state.isRotationLocked })),
+    set((s) => ({ isRotationLocked: !s.isRotationLocked })),
   isDarkModeOn: false,
-  toggleDarkMode: () => set((state) => ({ isDarkModeOn: !state.isDarkModeOn })),
+  toggleDarkMode: () => set((s) => ({ isDarkModeOn: !s.isDarkModeOn })),
   isTorchOn: false,
-  toggleTorch: () => set((state) => ({ isTorchOn: !state.isTorchOn })),
+  toggleTorch: () => set((s) => ({ isTorchOn: !s.isTorchOn })),
 
-  // Control Center Sliders
+  // 🎚 Sliders
   brightness: 0.5,
   setBrightness: (value) => set({ brightness: value }),
   volume: 0.5,
   setVolume: (value) => set({ volume: value }),
 
-  // Music Player
+  // 🎵 Music
   isMusicPlaying: false,
   currentSongIndex: 0,
-  toggleMusic: () =>
-    set((state) => ({ isMusicPlaying: !state.isMusicPlaying })),
+  toggleMusic: () => set((s) => ({ isMusicPlaying: !s.isMusicPlaying })),
   nextSong: (total) =>
-    set((state) => ({
-      currentSongIndex: (state.currentSongIndex + 1) % total,
+    set((s) => ({
+      currentSongIndex: (s.currentSongIndex + 1) % total,
       isMusicPlaying: true,
     })),
   prevSong: (total) =>
-    set((state) => ({
-      currentSongIndex: (state.currentSongIndex - 1 + total) % total,
+    set((s) => ({
+      currentSongIndex: (s.currentSongIndex - 1 + total) % total,
       isMusicPlaying: true,
     })),
+
+  // 📝 NOTES
+  notes: loadNotes(),
+  activeNoteId: null,
+
+  addNote: () => {
+    const newNote = {
+      id: Date.now(),
+      title: "New Note",
+      content: "",
+      createdAt: new Date().toISOString(),
+    };
+
+    const updated = [newNote, ...get().notes];
+    localStorage.setItem("notes", JSON.stringify(updated));
+
+    set({
+      notes: updated,
+      activeNoteId: newNote.id,
+    });
+  },
+
+  setActiveNote: (id) => set({ activeNoteId: id }),
+
+  updateNote: (id, content) => {
+    const updated = get().notes.map((note) =>
+      note.id === id
+        ? {
+            ...note,
+            content,
+            title: content.split("\n")[0] || "Untitled",
+          }
+        : note,
+    );
+
+    localStorage.setItem("notes", JSON.stringify(updated));
+    set({ notes: updated });
+  },
+
+  // Add these to your useOSStore.js actions:
+  togglePin: (id) => {
+    const updated = get().notes.map((note) =>
+      note.id === id ? { ...note, pinned: !note.pinned } : note,
+    );
+    localStorage.setItem("notes", JSON.stringify(updated));
+    set({ notes: updated });
+  },
+  setSearchTerm: (term) => set({ searchTerm: term }),
+
+  deleteNote: (id) => {
+    const updated = get().notes.filter((note) => note.id !== id);
+    localStorage.setItem("notes", JSON.stringify(updated));
+
+    set({
+      notes: updated,
+      activeNoteId: null,
+    });
+  },
 
   // 🔢 PASSCODE
   passcode: "",
@@ -68,19 +133,18 @@ export const useOSStore = create((set) => ({
   revealPasscode: () => set({ showPasscode: true }),
 
   addDigit: (digit) =>
-    set((state) => ({
-      passcode:
-        state.passcode.length < 4 ? state.passcode + digit : state.passcode,
+    set((s) => ({
+      passcode: s.passcode.length < 4 ? s.passcode + digit : s.passcode,
     })),
 
   deleteDigit: () =>
-    set((state) => ({
-      passcode: state.passcode.slice(0, -1),
+    set((s) => ({
+      passcode: s.passcode.slice(0, -1),
     })),
 
   checkPasscode: (input) =>
-    set((state) => {
-      if (input === state.correctPasscode) {
+    set((s) => {
+      if (input === s.correctPasscode) {
         return {
           isUnlocked: true,
           showPasscode: false,
