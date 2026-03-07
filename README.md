@@ -210,6 +210,6 @@ This project is open-source and built for learning and demonstration purposes.
 If you like this project, give it a star ⭐
 More crazy builds coming soon.
 
-Built with focus, discipline, and caffeine.
+Built with focus, discipline, and caffeine use.
 
 **– AnshCoder**
